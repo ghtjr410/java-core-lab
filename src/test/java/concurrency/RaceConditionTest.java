@@ -57,4 +57,69 @@ public class RaceConditionTest {
             assertThat(count).isLessThanOrEqualTo(expected);
         }
     }
+
+    @Nested
+    class synchronized로_해결 {
+
+        private int count = 0;
+
+        private synchronized void increment() {
+            count++;
+        }
+
+        @RepeatedTest(5)
+        void synchronized_메서드로_동기화() throws InterruptedException {
+            count = 0;
+            int threadCount = 100;
+            int incrementPerThread = 1000;
+
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        for (int j = 0; j < incrementPerThread; j++) {
+                            increment();
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+
+            int expected = threadCount * incrementPerThread;
+            assertThat(count).isEqualTo(expected);
+        }
+
+        @RepeatedTest(5)
+        void synchronized_블록으로_동기화() throws InterruptedException {
+            count = 0;
+            int threadCount = 100;
+            int incrementPerThread = 1000;
+            Object lock = new Object();
+
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        for (int j = 0; j < incrementPerThread; j++) {
+                            synchronized (lock) {
+                                count++;
+                            }
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+
+            int expected = threadCount * incrementPerThread;
+            assertThat(count).isEqualTo(expected);
+        }
+    }
 }
