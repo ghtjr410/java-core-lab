@@ -2,6 +2,9 @@ package concurrency;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -86,6 +89,47 @@ public class VolatileTest {
 
             System.out.println("루프 횟수: " + loopCount.get());
             assertThat(worker.getState()).isEqualTo(Thread.State.TERMINATED);
+        }
+    }
+
+    @Nested
+    class volatile은_원자성을_보장하지_않는다 {
+
+        /**
+         * volatile의 한계
+         * - 가시성만 보장, 원자성은 보장하지 않음
+         * - volatile int count; count++ 는 여전히 위험
+         * - 읽기 → 수정 → 쓰기가 원자적이지 않음
+         */
+        private volatile int count = 0;
+
+        @Test
+        void volatile이어도_복합연산은_Race_Condition_발생() throws InterruptedException {
+            count = 0;
+            int threadCount = 100;
+            int incrementPerThread = 1000;
+
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        for (int j = 0; j < incrementPerThread; j++) {
+                            count++; // volatile이지만 원자적이지 않음!
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+
+            int expected = threadCount * incrementPerThread;
+            System.out.println("기대값: " + expected + ", 실제값: " + count);
+
+            // 거의 항상 기대값보다 작음
+            assertThat(count).isLessThanOrEqualTo(expected);
         }
     }
 }
