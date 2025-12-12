@@ -6,10 +6,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.DisplayNameGeneration;
-import org.junit.jupiter.api.DisplayNameGenerator;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.*;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 public class RaceConditionTest {
@@ -161,6 +158,70 @@ public class RaceConditionTest {
 
             int expected = threadCount * incrementPerThread;
             assertThat(count.get()).isEqualTo(expected);
+        }
+    }
+
+    @Nested
+    class 복합_연산의_위험성 {
+
+        /**
+         * 체크 후 행동(Check-Then-Act) 패턴의 위험성
+         * - if 조건 확인과 실행 사이에 다른 스레드 개입 가능
+         */
+        private int value = 0;
+
+        @Test
+        void 체크_후_행동_패턴은_원자적이지_않다() throws InterruptedException {
+            value = 0;
+            int threadCount = 100;
+
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        // 체크와 행동 사이에 다른 스레드 개입 가능
+                        if (value == 0) {
+                            value = 1; // 여러 스레드가 동시에 이 조건을 통과할 수 있음
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+
+            // 이 테스트는 문제를 보여주기 위한 것
+            assertThat(value).isEqualTo(1);
+        }
+
+        @Test
+        void compareAndSet으로_원자적_체크_후_행동() throws InterruptedException {
+            AtomicInteger atomicValue = new AtomicInteger(0);
+            AtomicInteger successCount = new AtomicInteger(0);
+            int threadCount = 100;
+
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        // CAS: 기대값이 0이면 1로 변경, 아니면 실패
+                        if (atomicValue.compareAndSet(0, 1)) {
+                            successCount.incrementAndGet();
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+
+            // 정확히 1개의 스레드만 성공
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(atomicValue.get()).isEqualTo(1);
         }
     }
 }
