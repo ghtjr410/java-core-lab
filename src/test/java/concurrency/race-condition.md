@@ -114,3 +114,11 @@ count = 11
   - Lock
 
 이 문서는 Race Condition을 코드와 컴파일 결과로 직접 확인하기 위한 실험 기록이다.
+
+***
+
+| 문제 | 원인 | 해결책 |
+|------|------|--------|
+| Race Condition | 여러 스레드가 공유 변수 동시 접근 | synchronized, AtomicInteger |
+| Check-Then-Act | 조건 확인과 실행이 분리됨 | compareAndSet (CAS) |
+| 데이터 유실 | count++가 원자적이지 않음 | incrementAndGet() |
