@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -60,6 +61,8 @@ public class RaceConditionTest {
 
     @Nested
     class synchronized로_해결 {
+
+        // 문을 잠그는 방식
 
         private int count = 0;
 
@@ -120,6 +123,44 @@ public class RaceConditionTest {
 
             int expected = threadCount * incrementPerThread;
             assertThat(count).isEqualTo(expected);
+        }
+    }
+
+    @Nested
+    class AtomicInteger로_해결 {
+
+        /**
+         * 서로 부딪히면 다시 계산하는 방식
+         *
+         * AtomicInteger
+         * - CAS(Compare-And-Swap) 연산 사용
+         * - 락 없이 원자적 연산 보장
+         * - synchronized보다 성능 좋음
+         */
+        @RepeatedTest(5)
+        void AtomicInteger는_원자적_연산_보장() throws InterruptedException {
+            AtomicInteger count = new AtomicInteger(0);
+            int threadCount = 100;
+            int incrementPerThread = 1000;
+
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        for (int j = 0; j < incrementPerThread; j++) {
+                            count.incrementAndGet();
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+
+            int expected = threadCount * incrementPerThread;
+            assertThat(count.get()).isEqualTo(expected);
         }
     }
 }
