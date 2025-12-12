@@ -60,4 +60,32 @@ public class VolatileTest {
             // @Timeout으로 테스트 보호
         }
     }
+
+    @Nested
+    class volatile로_가시성_보장 {
+
+        private volatile boolean running = true;
+
+        @Test
+        @Timeout(value = 3, unit = TimeUnit.SECONDS)
+        void volatile_키워드로_가시성_보장() throws InterruptedException {
+            running = true;
+            AtomicInteger loopCount = new AtomicInteger(0);
+
+            Thread worker = new Thread(() -> {
+                while (running) {
+                    loopCount.incrementAndGet();
+                }
+            });
+
+            worker.start();
+            Thread.sleep(100);
+
+            running = false; // volatile이라 다른 스레드에서 즉시 보임
+            worker.join(1000);
+
+            System.out.println("루프 횟수: " + loopCount.get());
+            assertThat(worker.getState()).isEqualTo(Thread.State.TERMINATED);
+        }
+    }
 }
