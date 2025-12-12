@@ -224,4 +224,77 @@ public class RaceConditionTest {
             assertThat(atomicValue.get()).isEqualTo(1);
         }
     }
+
+    @Nested
+    class Virtual_Thread_Java21 {
+
+        /**
+         * Java 21 Virtual Thread
+         * - 경량 스레드 (수백만 개 생성 가능)
+         * - 플랫폼 스레드보다 훨씬 가벼움
+         * - 동기화 문제는 동일하게 발생
+         */
+        @RepeatedTest(5)
+        void Virtual_Thread도_Race_Condition_발생() throws InterruptedException {
+            AtomicInteger unsafeCount = new AtomicInteger(0);
+            AtomicInteger safeCount = new AtomicInteger(0);
+            int threadCount = 1000;
+
+            // Unsafe: 일반 int 연산 (실제로는 AtomicInteger지만 getAndAdd 대신 get+set 사용)
+            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        int current = unsafeCount.get();
+                        unsafeCount.set(current + 1); // 비원자적 연산
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+            }
+
+            // Safe: AtomicInteger 원자적 연산
+            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        safeCount.incrementAndGet(); // 원자적 연산
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+            }
+
+            System.out.println("Unsafe count: " + unsafeCount.get());
+            System.out.println("Safe count: " + safeCount.get());
+
+            assertThat(safeCount.get()).isEqualTo(threadCount);
+            // unsafeCount는 threadCount보다 작을 가능성 높음
+        }
+
+        @Test
+        void Virtual_Thread_대량_생성() throws InterruptedException {
+            int threadCount = 100_000;
+            AtomicInteger completedCount = new AtomicInteger(0);
+
+            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        completedCount.incrementAndGet();
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+            }
+
+            assertThat(completedCount.get()).isEqualTo(threadCount);
+        }
+    }
 }
