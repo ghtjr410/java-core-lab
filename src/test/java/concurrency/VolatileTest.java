@@ -300,4 +300,71 @@ public class VolatileTest {
             }
         }
     }
+
+    @Nested
+    class Double_Checked_Locking {
+
+        /**
+         * Double-Checked Locking 패턴
+         * - 싱글톤 지연 초기화에 사용
+         * - volatile 없으면 부분 초기화된 객체 참조 가능
+         */
+        static class Singleton {
+            private static volatile Singleton instance;
+
+            private final String value;
+
+            private Singleton() {
+                this.value = "initialized";
+            }
+
+            public static Singleton getInstance() {
+                if (instance == null) { // 1차 체크 (락 없이)
+                    synchronized (Singleton.class) {
+                        if (instance == null) { // 2차 체크 (락 안에서)
+                            instance = new Singleton();
+                        }
+                    }
+                }
+                return instance;
+            }
+
+            public String getValue() {
+                return value;
+            }
+        }
+
+        @Test
+        void Double_Checked_Locking_멀티스레드_테스트() throws InterruptedException {
+            int threadCount = 100;
+            CountDownLatch startLatch = new CountDownLatch(1);
+            CountDownLatch endLatch = new CountDownLatch(threadCount);
+            Singleton[] instances = new Singleton[threadCount];
+
+            for (int i = 0; i < threadCount; i++) {
+                final int index = i;
+                new Thread(() -> {
+                            try {
+                                startLatch.await();
+                                instances[index] = Singleton.getInstance();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            } finally {
+                                endLatch.countDown();
+                            }
+                        })
+                        .start();
+            }
+
+            startLatch.countDown(); // 동시 시작
+            endLatch.await();
+
+            // 모든 스레드가 같은 인스턴스를 받아야 함
+            Singleton first = instances[0];
+            for (Singleton instance : instances) {
+                assertThat(instance).isSameAs(first);
+                assertThat(instance.getValue()).isEqualTo("initialized");
+            }
+        }
+    }
 }
