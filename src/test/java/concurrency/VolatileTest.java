@@ -231,4 +231,73 @@ public class VolatileTest {
             }
         }
     }
+
+    @Nested
+    class volatile_vs_synchronized_vs_Atomic {
+
+        /**
+         * 비교:
+         * - volatile: 가시성만 보장, 원자성 X, 가장 가벼움
+         * - synchronized: 가시성 + 원자성, 락 사용, 무거움
+         * - Atomic: 가시성 + 원자성, CAS 사용, 중간
+         */
+        private volatile int volatileCount = 0;
+
+        private int syncCount = 0;
+        private final AtomicInteger atomicCount = new AtomicInteger(0);
+
+        private synchronized void syncIncrement() {
+            syncCount++;
+        }
+
+        @Test
+        void 세_가지_방식_비교() throws InterruptedException {
+            int threadCount = 10;
+            int incrementPerThread = 10000;
+
+            // volatile (원자성 없음 - 부정확한 결과)
+            volatileCount = 0;
+            runThreads(threadCount, incrementPerThread, () -> volatileCount++);
+            int volatileResult = volatileCount;
+
+            // synchronized (정확하지만 느림)
+            syncCount = 0;
+            runThreads(threadCount, incrementPerThread, this::syncIncrement);
+            int syncResult = syncCount;
+
+            // Atomic (정확하고 빠름)
+            atomicCount.set(0);
+            runThreads(threadCount, incrementPerThread, atomicCount::incrementAndGet);
+            int atomicResult = atomicCount.get();
+
+            int expected = threadCount * incrementPerThread;
+
+            System.out.println("Expected: " + expected);
+            System.out.println("volatile: " + volatileResult + " (원자성 없음)");
+            System.out.println("synchronized: " + syncResult);
+            System.out.println("Atomic: " + atomicResult);
+
+            assertThat(syncResult).isEqualTo(expected);
+            assertThat(atomicResult).isEqualTo(expected);
+            // volatileResult는 expected보다 작을 가능성 높음
+        }
+
+        private void runThreads(int threadCount, int incrementPerThread, Runnable task) throws InterruptedException {
+            try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                for (int i = 0; i < threadCount; i++) {
+                    executor.submit(() -> {
+                        for (int j = 0; j < incrementPerThread; j++) {
+                            task.run();
+                        }
+                        latch.countDown();
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+            }
+        }
+    }
 }
