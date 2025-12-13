@@ -132,4 +132,103 @@ public class VolatileTest {
             assertThat(count).isLessThanOrEqualTo(expected);
         }
     }
+
+    @Nested
+    class volatile_올바른_사용_케이스 {
+
+        /**
+         * volatile을 써야 하는 경우:
+         * 1. 단순 플래그 (boolean)
+         * 2. 한 스레드만 쓰고, 여러 스레드가 읽는 경우
+         * 3. 독립적인 값 (다른 변수와 연관 없음)
+         */
+        @Nested
+        class 종료_플래그 {
+
+            private volatile boolean stopRequested = false;
+
+            @Test
+            void 종료_플래그로_사용() throws InterruptedException {
+                stopRequested = false;
+                AtomicInteger workCount = new AtomicInteger(0);
+
+                Thread worker = new Thread(() -> {
+                    while (!stopRequested) {
+                        workCount.incrementAndGet();
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                });
+
+                worker.start();
+                Thread.sleep(100);
+
+                stopRequested = true; // 종료 요청
+                worker.join(1000);
+
+                assertThat(worker.getState()).isEqualTo(Thread.State.TERMINATED);
+                assertThat(workCount.get()).isGreaterThan(0);
+            }
+        }
+
+        @Nested
+        class 단일_쓰기_다중_읽기 {
+
+            private volatile String latestValue = "";
+
+            @Test
+            void 한_스레드만_쓰고_여러_스레드가_읽기() throws InterruptedException {
+                int readerCount = 5;
+                CountDownLatch startLatch = new CountDownLatch(1);
+                CountDownLatch endLatch = new CountDownLatch(readerCount + 1);
+                AtomicInteger readCount = new AtomicInteger(0);
+
+                // Reader 스레드들
+                for (int i = 0; i < readerCount; i++) {
+                    new Thread(() -> {
+                                try {
+                                    startLatch.await();
+                                    for (int j = 0; j < 100; j++) {
+                                        String value = latestValue; // 읽기만
+                                        if (!value.isEmpty()) {
+                                            readCount.incrementAndGet();
+                                        }
+                                        Thread.sleep(1); // Reader도 약간의 딜레이
+                                    }
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                } finally {
+                                    endLatch.countDown();
+                                }
+                            })
+                            .start();
+                }
+
+                // Writer 스레드 (단일)
+                new Thread(() -> {
+                            try {
+                                startLatch.await();
+                                for (int i = 0; i < 100; i++) {
+                                    latestValue = "value-" + i; // 쓰기
+                                    Thread.sleep(1);
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            } finally {
+                                endLatch.countDown(); // Writer도 완료 신호
+                            }
+                        })
+                        .start();
+
+                startLatch.countDown(); // 시작
+                endLatch.await(); // 모든 스레드 완료 대기
+
+                assertThat(readCount.get()).isGreaterThan(0);
+            }
+        }
+    }
 }
