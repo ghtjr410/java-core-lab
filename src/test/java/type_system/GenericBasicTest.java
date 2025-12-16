@@ -3,6 +3,7 @@ package type_system;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -98,6 +99,58 @@ public class GenericBasicTest {
             Integer length = stringBox.transform("hello", String::length);
 
             assertThat(length).isEqualTo(5);
+        }
+    }
+
+    @Nested
+    class 제네릭의_불공변성_Invariance {
+
+        /**
+         * 핵심 질문: 왜 List<Integer>를 List<Object>에 대입할 수 없는가?
+         *
+         * 답: 타입 안전성을 보장하기 위해서다.
+         * 만약 가능하다면, List<Integer>에 String을 넣을 수 있게 되어버린다.
+         */
+        @Test
+        void 제네릭은_불공변이므로_하위타입_관계가_성립하지_않는다() {
+            List<Integer> integers = new ArrayList<>();
+            integers.add(1);
+
+            // 컴파일 에러! List<Integer>는 List<Object>의 하위 타입이 아님
+            // List<Object> objects = integers;
+
+            // 만약 위 코드가 가능했다면...
+            // objects.add("hello"); // Object니까 String 넣기 가능
+            // Integer num = integers.get(1); // String을 Integer로? ClassCastException
+
+            assertThat(integers).containsExactly(1);
+        }
+
+        @Test
+        void 반면_배열은_공변이므로_하위타입_관계가_성립한다() {
+            Integer[] integers = {1, 2, 3};
+
+            // 컴파일 OK! Integer[]는 Object[]의 하위 타입
+            Object[] objects = integers;
+
+            // 하지만 런타임에 문제 발생!
+            assertThatThrownBy(() -> {
+                        objects[0] = "hello"; // ArrayStoreException
+                    })
+                    .isInstanceOf(ArrayStoreException.class);
+        }
+
+        @Test
+        void 배열의_공변성은_런타임_예외를_유발하지만_제네릭의_불공변성은_컴파일_타임에_잡아낸다() {
+            // 배열: 컴파일 OK, 런타임 에러 가능
+            Object[] objectArray = new Integer[3];
+            // objectArray[0] = "string"; // ArrayStoreException at runtime
+
+            // 제네릭: 컴파일 에러로 사전 차단
+            // List<Object> objectList = new ArrayList<Integer>(); // 컴파일 에러
+
+            // 제네릭이 더 안전하다 - 문제를 컴파일 타임에 발견
+            assertThat(true).isTrue();
         }
     }
 
