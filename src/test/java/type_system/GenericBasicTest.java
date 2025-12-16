@@ -154,6 +154,33 @@ public class GenericBasicTest {
         }
     }
 
+    @Nested
+    class Bounded_타입_파라미터 {
+
+        @Test
+        void extends로_상한_경계를_지정할_수_있다() {
+            // T extends Number: T는 Number 또는 그 하위 타입이어야 함
+            NumberBox<Integer> intBox = new NumberBox<>(42);
+            NumberBox<Double> doubleBox = new NumberBox<>(3.14);
+
+            // NumberBox<String> stringBox = new NumberBox<>("hello"); // 컴파일 에러!
+
+            assertThat(intBox.doubleValue()).isEqualTo(42.0);
+            assertThat(doubleBox.doubleValue()).isEqualTo(3.14);
+        }
+
+        @Test
+        void 다중_경계를_지정할_수_있다() {
+            // T extends Number & Comparable<T>
+            ComparableNumberBox<Integer> box1 = new ComparableNumberBox<>(10);
+            ComparableNumberBox<Integer> box2 = new ComparableNumberBox<>(20);
+
+            assertThat(box1.isLessThan(box2)).isTrue();
+        }
+    }
+
+    // === 헬퍼 클래스 ===
+
     static class Box<T> {
         private T value;
 
@@ -184,6 +211,30 @@ public class GenericBasicTest {
     }
 
     record Pair<F, S>(F first, S second) {}
+
+    static class NumberBox<T extends Number> {
+        private final T value;
+
+        public NumberBox(T value) {
+            this.value = value;
+        }
+
+        public double doubleValue() {
+            return value.doubleValue(); // Number의 메서드 사용 가능
+        }
+    }
+
+    static class ComparableNumberBox<T extends Number & Comparable<T>> {
+        private final T value;
+
+        public ComparableNumberBox(T value) {
+            this.value = value;
+        }
+
+        public boolean isLessThan(ComparableNumberBox<T> other) {
+            return this.value.compareTo(other.value) < 0;
+        }
+    }
 
     static <T> T getFirst(List<T> list) {
         return list.isEmpty() ? null : list.getFirst();
