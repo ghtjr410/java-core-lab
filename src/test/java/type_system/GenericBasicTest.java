@@ -3,6 +3,7 @@ package type_system;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -66,6 +67,40 @@ public class GenericBasicTest {
         }
     }
 
+    @Nested
+    class 제네릭_메서드 {
+
+        @Test
+        void 제네릭_메서드는_호출_시점에_타입이_결정된다() {
+            String first = getFirst(List.of("a", "b", "c"));
+            Integer firstNum = getFirst(List.of(1, 2, 3));
+
+            assertThat(first).isEqualTo("a");
+            assertThat(firstNum).isEqualTo(1);
+        }
+
+        @Test
+        void 타입_파라미터는_명시할_수도_있고_추론에_맡길_수도_있다() {
+            // 타입 추론
+            String inferred = getFirst(List.of("hello"));
+
+            // 명시적 타입 지정 (보통 필요 없지만 가능)
+            String explicit = GenericBasicTest.<String>getFirst(List.of("hello"));
+
+            assertThat(inferred).isEqualTo(explicit);
+        }
+
+        @Test
+        void 제네릭_메서드와_제네릭_클래스의_타입_파라미터는_독립적이다() {
+            Box<String> stringBox = new Box<>();
+
+            // Box<String>이지만, transform 메서드는 다른 타입으로 변환 가능
+            Integer length = stringBox.transform("hello", String::length);
+
+            assertThat(length).isEqualTo(5);
+        }
+    }
+
     static class Box<T> {
         private T value;
 
@@ -75,6 +110,11 @@ public class GenericBasicTest {
 
         public T get() {
             return value;
+        }
+
+        // 제네릭 메서드: 클래스의 T와 독립적인 R
+        public <R> R transform(T input, java.util.function.Function<T, R> transformer) {
+            return transformer.apply(input);
         }
     }
 
@@ -91,4 +131,8 @@ public class GenericBasicTest {
     }
 
     record Pair<F, S>(F first, S second) {}
+
+    static <T> T getFirst(List<T> list) {
+        return list.isEmpty() ? null : list.getFirst();
+    }
 }
