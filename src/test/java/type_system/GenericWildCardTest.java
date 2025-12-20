@@ -69,4 +69,120 @@ public class GenericWildCardTest {
                     .isInstanceOf(ClassCastException.class);
         }
     }
+
+    @Nested
+    class 타입_소거로_인한_제약사항 {
+
+        @Test
+        void 제네릭_타입으로_인스턴스를_생성할_수_없다() {
+            // new T()가 불가능한 이유:
+            // 런타임에 T가 무엇인지 모르기 때문
+
+            // 컴파일 에러
+            // T instance = new T();
+
+            // 대안: Class<T> 또는 Supplier<T>를 받아서 생성
+            Box<String> box = new Box<>(String::new);
+            assertThat(box.createNew()).isEqualTo("");
+        }
+
+        @Test
+        void 제네릭_타입으로_배열을_생성할_수_없다() {
+            // 컴파일 에러
+            // T[] array = new T[10];
+
+            // 배열은 런타임에 타입 정보를 유지하는데,
+            // 제네릭은 타입 소거로 런타임에 타입 정보가 없어서 충돌
+
+            // 대안 1: Object 배열 사용 후 캐스팅 (안전하지 않음)
+            // 대안 2: Array.newInstance 사용
+            // 대안 3: List 사용 (권장)
+
+            GenericArray<String> arr = new GenericArray<>(String.class, 5);
+            arr.set(0, "hello");
+            assertThat(arr.get(0)).isEqualTo("hello");
+        }
+
+        @Test
+        void 같은_제네릭_클래스의_다른_타입_파라미터로_오버로딩할_수_없다() {
+            // 컴파일 에러:
+            // - 타입 소거 후 시그니처가 동일해짐
+            // void process(List<String> list) { }
+            // void process(List<Integer> list) { }
+
+            // 타입 소거 후 둘 다:
+            // void process(List list) { }
+            // 가 되어 메서드 시그니처 충돌!
+
+            Processor processor = new Processor();
+            assertThat(processor.processStrings(List.of("a"))).isEqualTo("String: a");
+            assertThat(processor.processIntegers(List.of(1))).isEqualTo("Integer: 1");
+        }
+
+        @Test
+        void 제네릭_예외_클래스를_만들_수_없다() {
+            // 컴파일 에러:
+            // class GenericException<T> extends Exception { }
+
+            // 왜? catch 블록에서 타입 파라미터를 구분할 수 없음
+            // catch (GenericException<String> e) { }  // 불가능
+            // catch (GenericException<Integer> e) { } // 불가능
+
+            // 타입 소거 후 둘 다 GenericException이 됨
+        }
+
+        @Test
+        void static_컨텍스트에서_타입_파라미터를_사용할_수_없다() {
+            // class Box<T> {
+            //     static T value;           // 컴파일 에러
+            //     static void process(T t); // 컴파일 에러
+            // }
+
+            // 왜? static 멤버는 모든 인스턴스가 공유하는데,
+            // 타입 파라미터는 인스턴스마다 다를 수 있음
+            // Box<String>, Box<Integer>가 같은 static 필드를 공유해야 하는데
+            // T가 String인지 Integer인지 정할 수 없음
+        }
+    }
+
+    // === 테스트용 헬퍼 클래스들 ===
+
+    static class Box<T> {
+        private final java.util.function.Supplier<T> supplier;
+
+        public Box(java.util.function.Supplier<T> supplier) {
+            this.supplier = supplier;
+        }
+
+        public T createNew() {
+            return supplier.get();
+        }
+    }
+
+    static class GenericArray<T> {
+        private final T[] array;
+
+        @SuppressWarnings("unchecked")
+        public GenericArray(Class<T> clazz, int size) {
+            array = (T[]) java.lang.reflect.Array.newInstance(clazz, size);
+        }
+
+        public void set(int index, T value) {
+            array[index] = value;
+        }
+
+        public T get(int index) {
+            return array[index];
+        }
+    }
+
+    static class Processor {
+        public String processStrings(List<String> list) {
+            return "String: " + list.get(0);
+        }
+
+        public String processIntegers(List<Integer> list) {
+            return "Integer: " + list.get(0);
+        }
+    }
 }
