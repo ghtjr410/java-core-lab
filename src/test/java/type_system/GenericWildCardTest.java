@@ -145,6 +145,58 @@ public class GenericWildCardTest {
         }
     }
 
+    @Nested
+    class 타입_소거의_구체적_동작 {
+
+        @Test
+        void 비한정_타입_파라미터는_Object로_소거된다() throws Exception {
+            // class Container<T> { T value; }
+            // 소거 후: class Container { Object value; }
+
+            Class<?> clazz = Container.class;
+            java.lang.reflect.Field field = clazz.getDeclaredField("value");
+
+            // 런타임에는 Object 타입
+            assertThat(field.getType()).isEqualTo(Object.class);
+        }
+
+        @Test
+        void 한정_타입_파라미터는_첫_번째_경계_타입으로_소거된다() throws Exception {
+            // class NumberContainer<T extends Number> { T value; }
+            // 소거 후: class NumberContainer { Number value; }
+
+            Class<?> clazz = NumberContainer.class;
+            java.lang.reflect.Field field = clazz.getDeclaredField("value");
+
+            // 런타임에는 Number 타입
+            assertThat(field.getType()).isEqualTo(Number.class);
+        }
+
+        @Test
+        void 다중_경계의_경우_첫_번째_경계로_소거된다() throws Exception {
+            // class MultiContainer<T extends Number & Comparable<T>> { T value; }
+            // 소거 후: class MultiContainer { Number value; }
+
+            Class<?> clazz = MultiContainer.class;
+            java.lang.reflect.Field field = clazz.getDeclaredField("value");
+
+            // 첫 번째 경계인 Number로 소거
+            assertThat(field.getType()).isEqualTo(Number.class);
+        }
+
+        @Test
+        void 컴파일러는_필요한_곳에_자동으로_캐스트를_삽입한다() {
+            Container<String> container = new Container<>();
+            container.value = "hello";
+
+            // 우리 코드: String s = container.value;
+            // 컴파일 후: String s = (String) container.value;
+
+            String value = container.value;
+            assertThat(value).isEqualTo("hello");
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     static class Box<T> {
@@ -184,5 +236,17 @@ public class GenericWildCardTest {
         public String processIntegers(List<Integer> list) {
             return "Integer: " + list.get(0);
         }
+    }
+
+    static class Container<T> {
+        T value;
+    }
+
+    static class NumberContainer<T extends Number> {
+        T value;
+    }
+
+    static class MultiContainer<T extends Number & Comparable<T>> {
+        T value;
     }
 }
