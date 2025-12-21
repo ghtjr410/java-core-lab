@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
  *
  */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-public class GenericWildCardTest {
+public class GenericTypeErasureTest {
 
     @Nested
     class 타입_소거의_기본_원리 {
