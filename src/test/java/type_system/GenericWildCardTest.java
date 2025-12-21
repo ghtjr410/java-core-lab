@@ -3,6 +3,9 @@ package type_system;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -197,6 +200,44 @@ public class GenericWildCardTest {
         }
     }
 
+    @Nested
+    class 타입_소거_우회_방법 {
+
+        @Test
+        void Class_객체를_통한_타입_정보_전달() {
+            TypeAwareContainer<String> container = new TypeAwareContainer<>(String.class);
+            container.setValue("hello");
+
+            assertThat(container.getType()).isEqualTo(String.class);
+            assertThat(container.getValue()).isEqualTo("hello");
+
+            // 타입 안전한 인스턴스 생성 가능
+            String newInstance = container.createNew();
+            assertThat(newInstance).isEqualTo("");
+        }
+
+        @Test
+        void 익명_클래스를_통한_타입_토큰_패턴() {
+            // 슈퍼 타입 토큰 패턴
+            TypeReference<List<String>> typeRef = new TypeReference<>() {};
+
+            Type type = typeRef.getType();
+            assertThat(type.getTypeName()).isEqualTo("java.util.List<java.lang.String>");
+        }
+
+        @Test
+        void 리플렉션으로_제네릭_메서드_시그니처_조회() throws Exception {
+            Method method = TypeErasureExample.class.getMethod("process", List.class);
+
+            // 파라미터의 제네릭 타입 정보는 메타데이터로 유지됨
+            Type[] paramTypes = method.getGenericParameterTypes();
+            ParameterizedType paramType = (ParameterizedType) paramTypes[0];
+
+            assertThat(paramType.getRawType()).isEqualTo(List.class);
+            assertThat(paramType.getActualTypeArguments()[0]).isEqualTo(String.class);
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     static class Box<T> {
@@ -248,5 +289,51 @@ public class GenericWildCardTest {
 
     static class MultiContainer<T extends Number & Comparable<T>> {
         T value;
+    }
+
+    static class TypeAwareContainer<T> {
+        private final Class<T> type;
+        private T value;
+
+        public TypeAwareContainer(Class<T> type) {
+            this.type = type;
+        }
+
+        public void setValue(T value) {
+            this.value = value;
+        }
+
+        public T getValue() {
+            return value;
+        }
+
+        public Class<T> getType() {
+            return type;
+        }
+
+        public T createNew() {
+            try {
+                return type.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    abstract static class TypeReference<T> {
+        private final Type type;
+
+        protected TypeReference() {
+            Type superClass = getClass().getGenericSuperclass();
+            type = ((ParameterizedType) superClass).getActualTypeArguments()[0];
+        }
+
+        public Type getType() {
+            return type;
+        }
+    }
+
+    static class TypeErasureExample {
+        public void process(List<String> list) {}
     }
 }
