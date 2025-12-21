@@ -360,4 +360,73 @@ public class GenericWildcardTest {
             }
         }
     }
+
+    @Nested
+    class 와일드카드_사용_가이드라인 {
+
+        /**
+         * 언제 어떤 와일드카드를 사용할까?
+         *
+         * 1. <?> - 타입이 중요하지 않을 때 (size, clear 등)
+         * 2. <? extends T> - 컬렉션에서 읽기만 할 때
+         * 3. <? super T> - 컬렉션에 쓰기만 할 때
+         * 4. <T> - 읽기와 쓰기 모두 필요할 때
+         */
+        @Test
+        void 가이드라인_타입_무관_연산() {
+            List<String> strings = new ArrayList<>(List.of("a", "b", "c"));
+            List<Integer> numbers = new ArrayList<>(List.of(1, 2, 3));
+
+            assertThat(isEmpty(strings)).isFalse();
+            assertThat(isEmpty(numbers)).isFalse();
+
+            clear(strings);
+            clear(numbers);
+
+            assertThat(strings).isEmpty();
+            assertThat(numbers).isEmpty();
+        }
+
+        @Test
+        void 가이드라인_읽기_전용은_extends() {
+            List<Integer> integers = List.of(1, 2, 3, 4, 5);
+
+            // 읽기 전용 연산: extends 사용
+            int sum = sumAll(integers);
+
+            assertThat(sum).isEqualTo(15);
+        }
+
+        @Test
+        void 가이드라인_쓰기_전용은_super() {
+            List<Object> sink = new ArrayList<>();
+
+            // 쓰기 전용 연산: super 사용
+            produceIntegers(sink);
+
+            assertThat(sink).containsExactly(1, 2, 3, 4, 5);
+        }
+
+        private boolean isEmpty(List<?> list) {
+            return list.isEmpty();
+        }
+
+        private void clear(List<?> list) {
+            list.clear();
+        }
+
+        private int sumAll(List<? extends Number> numbers) {
+            int sum = 0;
+            for (Number n : numbers) {
+                sum += n.intValue();
+            }
+            return sum;
+        }
+
+        private void produceIntegers(List<? super Integer> target) {
+            for (int i = 1; i <= 5; i++) {
+                target.add(i);
+            }
+        }
+    }
 }
