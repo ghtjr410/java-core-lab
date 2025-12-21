@@ -150,4 +150,68 @@ public class GenericWildcardTest {
             return org.assertj.core.data.Offset.offset(value);
         }
     }
+
+    @Nested
+    class 하한_경계_와일드카드_Lower_Bounded {
+
+        /**
+         * <? super T>: Consumer Super
+         * - T 또는 T의 상위 타입을 담은 컬렉션
+         * - 쓰기(consume) 전용으로 사용
+         * - 읽기 시 Object로만 받을 수 있음
+         */
+        @Test
+        void super_와일드카드는_쓰기_전용이다() {
+            List<Object> objects = new ArrayList<>();
+            List<Number> numbers = new ArrayList<>();
+            List<Integer> integers = new ArrayList<>();
+
+            // Integer를 추가하는 메서드
+            addIntegers(objects); // List<Object>도 Integer를 담을 수 있음
+            addIntegers(numbers); // List<Number>도 Integer를 담을 수 있음
+            addIntegers(integers); // List<Integer>는 당연히 가능
+
+            assertThat(objects).containsExactly(1, 2, 3);
+            assertThat(numbers).containsExactly(1, 2, 3);
+            assertThat(integers).containsExactly(1, 2, 3);
+        }
+
+        @Test
+        void super_와일드카드_리스트에서_읽기는_Object로만_가능하다() {
+            List<Number> numbers = new ArrayList<>(List.of(1, 2.0, 3L));
+            List<? super Integer> superInteger = numbers;
+
+            // 쓰기는 가능 - Integer 또는 그 하위 타입
+            superInteger.add(100);
+
+            // 읽기는 Object로만
+            Object first = superInteger.get(0);
+            // Integer first = superInteger.get(0); // 컴파일 에러!
+            // Number first = superInteger.get(0);  // 컴파일 에러!
+
+            assertThat(first).isEqualTo(1);
+        }
+
+        @Test
+        void super_와일드카드로_상위타입_컬렉션에_유연하게_추가() {
+            List<Object> objects = new ArrayList<>();
+
+            // Object 리스트에 String을 추가하는 것도 가능
+            fillWithStrings(objects);
+
+            assertThat(objects).containsExactly("A", "B", "C");
+        }
+
+        private void addIntegers(List<? super Integer> list) {
+            list.add(1);
+            list.add(2);
+            list.add(3);
+        }
+
+        private void fillWithStrings(List<? super String> list) {
+            list.add("A");
+            list.add("B");
+            list.add("C");
+        }
+    }
 }
