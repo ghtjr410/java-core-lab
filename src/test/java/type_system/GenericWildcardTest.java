@@ -71,4 +71,83 @@ public class GenericWildcardTest {
             list.add(null); // null만 가능
         }
     }
+
+    @Nested
+    class 상한_경계_와일드카드_Upper_Bounded {
+
+        /**
+         * <? extends T>: Producer Extends
+         * - T 또는 T의 하위 타입을 담은 컬렉션
+         * - 읽기(produce) 전용으로 사용
+         * - 쓰기 불가 (정확한 타입을 모르므로)
+         */
+        @Test
+        void extends_와일드카드는_읽기_전용이다() {
+            List<Integer> integers = List.of(1, 2, 3);
+            List<Double> doubles = List.of(1.1, 2.2, 3.3);
+
+            // List<? extends Number>는 Number 또는 그 하위 타입의 리스트
+            double sumIntegers = sumNumbers(integers);
+            double sumDoubles = sumNumbers(doubles);
+
+            assertThat(sumIntegers).isEqualTo(6.0);
+            assertThat(sumDoubles).isEqualTo(6.6, within(0.01));
+        }
+
+        @Test
+        void extends_와일드카드_리스트에는_쓰기가_불가능하다() {
+            List<Integer> integers = new ArrayList<>(List.of(1, 2, 3));
+            List<? extends Number> numbers = integers;
+
+            // 읽기는 가능 - Number로 읽음
+            Number first = numbers.get(0);
+            assertThat(first).isEqualTo(1);
+
+            // 쓰기는 불가능!
+            // numbers.add(1);       // 컴파일 에러
+            // numbers.add(1.0);     // 컴파일 에러
+            // numbers.add(1L);      // 컴파일 에러
+
+            // 왜? List<? extends Number>는 List<Integer>일 수도, List<Double>일 수도 있다.
+            // 만약 List<Integer>인데 Double을 넣으면 타입 안전성 깨짐!
+        }
+
+        @Test
+        void extends_와일드카드로_여러_하위타입_컬렉션을_유연하게_처리() {
+            List<Integer> integers = List.of(1, 2, 3);
+            List<Long> longs = List.of(10L, 20L, 30L);
+            List<Double> doubles = List.of(0.1, 0.2, 0.3);
+
+            Number maxInt = findMax(integers);
+            Number maxLong = findMax(longs);
+            Number maxDouble = findMax(doubles);
+
+            assertThat(maxInt.intValue()).isEqualTo(3);
+            assertThat(maxLong.longValue()).isEqualTo(30L);
+            assertThat(maxDouble.doubleValue()).isEqualTo(0.3);
+        }
+
+        private double sumNumbers(List<? extends Number> numbers) {
+            double sum = 0;
+            for (Number n : numbers) {
+                sum += n.doubleValue();
+            }
+            return sum;
+        }
+
+        private Number findMax(List<? extends Number> numbers) {
+            if (numbers.isEmpty()) return null;
+            Number max = numbers.get(0);
+            for (Number n : numbers) {
+                if (n.doubleValue() > max.doubleValue()) {
+                    max = n;
+                }
+            }
+            return max;
+        }
+
+        private static org.assertj.core.data.Offset<Double> within(double value) {
+            return org.assertj.core.data.Offset.offset(value);
+        }
+    }
 }
