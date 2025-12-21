@@ -214,4 +214,81 @@ public class GenericWildcardTest {
             list.add("C");
         }
     }
+
+    @Nested
+    class PECS_원칙_Producer_Extends_Consumer_Super {
+
+        /**
+         * PECS 원칙:
+         * - Producer(데이터를 꺼내는 쪽): extends 사용
+         * - Consumer(데이터를 넣는 쪽): super 사용
+         *
+         * Collections.copy(dest, src)가 대표적인 예:
+         * - src는 데이터를 제공(produce)하므로 extends
+         * - dest는 데이터를 받아들이므로(consume) super
+         */
+        @Test
+        void PECS_원칙_적용_예시_복사() {
+            List<Integer> source = List.of(1, 2, 3);
+            List<Number> destination = new ArrayList<>(List.of(0, 0, 0));
+
+            copy(destination, source);
+
+            assertThat(destination).containsExactly(1, 2, 3);
+        }
+
+        @Test
+        void PECS_원칙_적용_예시_필터링_후_추가() {
+            List<Integer> source = List.of(1, 2, 3, 4, 5, 6);
+            List<Number> destination = new ArrayList<>();
+
+            // source에서 짝수만 꺼내서 destination에 추가
+            filterAndAdd(destination, source, n -> n % 2 == 0);
+
+            assertThat(destination).containsExactly(2, 4, 6);
+        }
+
+        @Test
+        void PECS가_없으면_코드_재사용성이_떨어진다() {
+            List<Integer> integers = List.of(1, 2, 3);
+            List<Number> numbers = new ArrayList<>(List.of(0, 0, 0));
+
+            // PECS 없이 단순 제네릭으로는 이게 불가능
+            // copyStrictly(numbers, integers); // 컴파일 에러
+
+            // PECS로 유연성 확보
+            copy(numbers, integers); // OK
+
+            assertThat(numbers).containsExactly(1, 2, 3);
+        }
+
+        /**
+         * PECS가 적용된 copy 메서드
+         * @param dest 대상 리스트 (Consumer - super)
+         * @param src 소스 리스트 (Producer - extends)
+         */
+        private <T> void copy(List<? super T> dest, List<? extends T> src) {
+            for (int i = 0; i < src.size(); i++) {
+                dest.set(i, src.get(i));
+            }
+        }
+
+        private <T> void filterAndAdd(
+                List<? super T> dest, // Consumer: 데이터를 받음
+                List<? extends T> src, // Producer: 데이터를 제공
+                java.util.function.Predicate<T> predicate) {
+            for (T item : src) {
+                if (predicate.test(item)) {
+                    dest.add(item);
+                }
+            }
+        }
+
+        // PECS 없는 버전 - 유연성이 떨어짐
+        private <T> void copyStrictly(List<T> dest, List<T> src) {
+            for (int i = 0; i < src.size(); i++) {
+                dest.set(i, src.get(i));
+            }
+        }
+    }
 }
