@@ -291,4 +291,73 @@ public class GenericWildcardTest {
             }
         }
     }
+
+    @Nested
+    class 와일드카드_캡처 {
+        /**
+         * 와일드카드 캡처 헬퍼 패턴:
+         * - public API는 <?> 로 간결하게 노출
+         * - 내부 헬퍼는 <T> 로 실제 작업 수행
+         * - 호출자는 타입을 명시할 필요 없이 편리하게 사용
+         *
+         * 만약 <?> 대신 <T>를 직접 노출하면:
+         * - swap(strings, 0, 1)           → 대부분 OK
+         * - Utils.<String>swap(list, 0, 1) → 가끔 타입 명시 필요
+         * - 메서드 시그니처가 복잡해 보임: <T> void swap(List<T> list, ...)
+         *
+         * <?> + 헬퍼 패턴을 쓰면:
+         * - swap(list, 0, 1) → 항상 간단
+         * - 메서드 시그니처가 깔끔: void swap(List<?> list, ...)
+         */
+        @Test
+        void 와일드카드와_헬퍼로_간결한_API_제공() {
+            List<String> strings = new ArrayList<>(List.of("a", "b", "c"));
+
+            // 호출자는 타입 신경 쓸 필요 없이 그냥 호출
+            // 첫 번째와 두 번째 요소 교환
+            swap(strings, 0, 1);
+
+            assertThat(strings).containsExactly("b", "a", "c");
+        }
+
+        @Test
+        void 다양한_타입에_동일한_API로_동작() {
+            List<Integer> numbers = new ArrayList<>(List.of(1, 2, 3));
+
+            // Integer든 String이든 같은 방식으로 호출
+            reverse(numbers);
+
+            assertThat(numbers).containsExactly(3, 2, 1);
+        }
+
+        // <?> 로 받아서 호출자가 타입 명시 없이 사용 가능
+        // 와일드카드를 사용하는 public 메서드
+        private void swap(List<?> list, int i, int j) {
+            swapHelper(list, i, j);
+        }
+
+        // 와일드카드 캡처를 위한 private 헬퍼
+        // 내부에서 <?> -> <T>로 캡처하여 타입 안전한 연산 수행
+        private <T> void swapHelper(List<T> list, int i, int j) {
+            T temp = list.get(i);
+            list.set(i, list.get(j));
+            list.set(j, temp);
+        }
+
+        private void reverse(List<?> list) {
+            reverseHelper(list);
+        }
+
+        private <T> void reverseHelper(List<T> list) {
+            int left = 0;
+            int right = list.size() - 1;
+            while (left < right) {
+                T temp = list.get(left);
+                list.set(left, list.get(right));
+                list.set(right, temp);
+                left++;
+                right--;
+            }
+        }
+    }
 }
