@@ -238,6 +238,45 @@ public class GenericWildCardTest {
         }
     }
 
+    @Nested
+    class 브릿지_메서드 {
+
+        // 타입 소거로 인해 런타임에 끊어질 오버라이드 관계를
+        // 컴파일러가 컴파일 시점에 브릿지 메서드를 생성해서 복구한다
+        @Test
+        void 컴파일러는_타입_소거로_인한_다형성_유지를_위해_브릿지_메서드를_생성한다() throws Exception {
+            // IntegerNode는 Node<Integer>를 상속
+            // Node<Integer>의 setData(Integer)가 타입 소거 후
+            // setData(Object)가 되므로 브릿지 메서드 필요
+
+            Class<?> clazz = IntegerNode.class;
+            Method[] methods = clazz.getDeclaredMethods();
+
+            // setData가 2개: 원본 + 브릿지 메서드
+            long setDataCount = java.util.Arrays.stream(methods)
+                    .filter(m -> m.getName().equals("setData"))
+                    .count();
+
+            assertThat(setDataCount).isEqualTo(2);
+
+            // 브릿지 메서드 확인
+            Method bridgeMethod = clazz.getMethod("setData", Object.class);
+            assertThat(bridgeMethod.isBridge()).isTrue();
+
+            // 실제 메서드
+            Method realMethod = clazz.getMethod("setData", Integer.class);
+            assertThat(realMethod.isBridge()).isFalse();
+        }
+
+        @Test
+        void 브릿지_메서드는_다형성_호출을_실제_메서드로_위임한다() {
+            Node<Integer> node = new IntegerNode();
+            node.setData(42); // Object 버전이 호출되지만, 브릿지가 Integer 버전으로 위임
+
+            assertThat(node.getData()).isEqualTo(42);
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     static class Box<T> {
@@ -333,7 +372,31 @@ public class GenericWildCardTest {
         }
     }
 
+    /**
+     * 슈퍼 타입 토큰 패턴
+     * 익명 클래스를 통해 제네릭 타입 정보를 런타임에 유지
+     */
     static class TypeErasureExample {
         public void process(List<String> list) {}
+    }
+
+    // 브릿지 메서드 예시용 클래스
+    static class Node<T> {
+        private T data;
+
+        public void setData(T data) {
+            this.data = data;
+        }
+
+        public T getData() {
+            return data;
+        }
+    }
+
+    static class IntegerNode extends Node<Integer> {
+        @Override
+        public void setData(Integer data) {
+            super.setData(data);
+        }
     }
 }
