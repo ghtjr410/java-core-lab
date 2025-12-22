@@ -2,6 +2,7 @@ package type_system;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,6 +169,42 @@ public class TypeInferenceTest {
             // var method() { return "hello"; } // 컴파일 에러
 
             // 반환 타입은 명시적으로 지정해야 함
+        }
+    }
+
+    @Nested
+    class var_사용_가이드라인 {
+
+        @Test
+        void 타입이_명확할_때_var_사용() {
+            // 좋은 예: 우측에서 타입이 명확히 보임
+            var list = new ArrayList<String>();
+            var map = new HashMap<String, Integer>();
+            var name = "John";
+
+            assertThat(list).isEmpty();
+            assertThat(map).isEmpty();
+            assertThat(name).isEqualTo("John");
+        }
+
+        @Test
+        void 타입이_불명확할_때_var_사용을_피해야_한다() {
+            // 안 좋은 예: result가 무슨 타입인지 불명확
+            // var result = service.process(data);
+
+            // 좋은 예: 타입 명시로 코드 가독성 향상
+            // ProcessResult result = service.process(data);
+        }
+
+        @Test
+        void 의미_있는_변수명으로_var의_단점을_보완() {
+            var userNames = List.of("Alice", "Bob"); // 복수형 -> List
+            var userNameToAge = Map.of("Alice", 30); // To -> Map
+            var activeUserCount = 42; // Count -> 숫자형
+
+            assertThat(userNames).hasSize(2);
+            assertThat(userNameToAge).containsKey("Alice");
+            assertThat(activeUserCount).isEqualTo(42);
         }
     }
 }
