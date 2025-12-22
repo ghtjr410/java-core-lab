@@ -247,4 +247,63 @@ public class TypeInferenceTest {
             assertThat(comparator.compare("ab", "abc")).isLessThan(0);
         }
     }
+
+    @Nested
+    class 메서드_타입_추론 {
+
+        @Test
+        void 제네릭_메서드는_인자로부터_타입을_추론한다() {
+            // 타입 파라미터를 명시하지 않아도 추론됨
+            String first = firstElement(List.of("a", "b", "c"));
+            Integer firstNum = firstElement(List.of(1, 2, 3));
+
+            assertThat(first).isEqualTo("a");
+            assertThat(firstNum).isEqualTo(1);
+        }
+
+        @Test
+        void 반환_타입_컨텍스트로부터_타입을_추론한다() {
+            // 좌변의 타입으로부터 추론
+            List<String> emptyStrings = emptyList();
+            List<Integer> emptyIntegers = emptyList();
+
+            assertThat(emptyStrings).isEmpty();
+            assertThat(emptyIntegers).isEmpty();
+        }
+
+        @Test
+        void 체이닝된_메서드에서의_타입_추론() {
+            var result = emptyList().stream().map(Object::toString).toList();
+
+            // Object로 추론됨 (컨텍스트 정보 부족)
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        void 명시적_타입_힌트가_필요한_경우() {
+            // 컴파일러가 추론하기 어려운 경우 명시적으로 타입 지정
+            List<String> explicitType = GenericMethodExample.<String>emptyList();
+
+            // 또는 타겟 타입을 통한 힌트
+            List<String> targetType = emptyList();
+            String first = targetType.isEmpty() ? "default" : targetType.getFirst();
+
+            assertThat(explicitType).isEmpty();
+            assertThat(first).isEqualTo("default");
+        }
+
+        private <T> T firstElement(List<T> list) {
+            return list.isEmpty() ? null : list.getFirst();
+        }
+
+        private <T> List<T> emptyList() {
+            return new ArrayList<>();
+        }
+    }
+
+    static class GenericMethodExample {
+        public static <T> List<T> emptyList() {
+            return new ArrayList<>();
+        }
+    }
 }
