@@ -97,4 +97,77 @@ public class TypeInferenceTest {
             assertThat(content).isEqualTo("Hello");
         }
     }
+
+    @Nested
+    class var_사용_불가_케이스 {
+
+        @Test
+        void var는_초기화_없이_사용할_수_없다() {
+            // 컴파일 에러:
+            // 추론할 타입 정보가 없음
+            // var unintialized;
+            // unintialized = "hello";
+
+            // 반드시 선언과 동시에 초기화
+            var initialized = "hello";
+            assertThat(initialized).isEqualTo("hello");
+        }
+
+        @Test
+        void var는_null로_초기화할_수_없다() {
+            // 컴파일 에러
+            // - null만으로는 타입 추론 불가
+            // var nullVar = null;
+
+            // 명시적 캐스팅으로 타입 힌트 제공 가능
+            var nullable = (String) null;
+            assertThat(nullable).isNull();
+        }
+
+        @Test
+        void var는_람다_표현식에_직접_사용할_수_없다() {
+            // 컴파일 에러:
+            // - 람다의 타입은 컨텍스트에서 결정됨
+            // var lambda = (x) -> x * 2;
+
+            // 타겟 타입을 명시하면 가능
+            var lambda = (Function<Integer, Integer>) x -> x * 2;
+
+            assertThat(lambda.apply(5)).isEqualTo(10);
+        }
+
+        @Test
+        void var는_배열_초기화에_직접_사용할_수_없다() {
+            // 컴파일 에러
+            // var arr = {1, 2, 3};
+
+            // 명시적으로 new 사용하면 가능
+            var arr = new int[] {1, 2, 3};
+
+            assertThat(arr).containsExactly(1, 2, 3);
+        }
+
+        @Test
+        void var는_필드에_사용할_수_없다() {
+            // class Example {
+            //     var field = "hello"; // 컴파일 에러
+            // }
+
+            // var는 지역 변수 전용
+        }
+
+        @Test
+        void var는_메서드_파라미터에_사용할_수_없다() {
+            // void method(var param) { } // 컴파일 에러
+
+            // 파라미터는 명시적 타입 필요
+        }
+
+        @Test
+        void var는_반환_타입에_사용할_수_없다() {
+            // var method() { return "hello"; } // 컴파일 에러
+
+            // 반환 타입은 명시적으로 지정해야 함
+        }
+    }
 }
