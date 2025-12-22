@@ -207,4 +207,44 @@ public class TypeInferenceTest {
             assertThat(activeUserCount).isEqualTo(42);
         }
     }
+
+    @Nested
+    class 다이아몬드_연산자_Java_7 {
+
+        @Test
+        void 다이아몬드_연산자로_제네릭_인스턴스_생성_시_타입_생략() {
+            // Java 7 이전
+            List<String> oldStyle = new ArrayList<String>();
+
+            // Java 7+: 다이아몬드 연산자
+            List<String> newStyle = new ArrayList<>();
+
+            // 컴파일러가 좌측 선언부를 보고 타입 추론
+            assertThat(oldStyle.getClass()).isEqualTo(newStyle.getClass());
+        }
+
+        @Test
+        void 중첩_제네릭에서_다이아몬드_연산자_효과() {
+            // 타입 선언이 장황한 경우
+            Map<String, List<Integer>> oldStyle = new HashMap<String, List<Integer>>();
+
+            // 다이아몬드 연산자로 간결하게
+            Map<String, List<Integer>> newStyle = new HashMap<>();
+
+            assertThat(newStyle).isEmpty();
+        }
+
+        @Test
+        void 익명_클래스에서_다이아몬드_연산자_사용_Java_9() {
+            // Java 9부터 익명 클래스에서도 다이아몬드 연산자 사용 가능
+            java.util.Comparator<String> comparator = new java.util.Comparator<>() {
+                @Override
+                public int compare(String s1, String s2) {
+                    return s1.length() - s2.length();
+                }
+            };
+
+            assertThat(comparator.compare("ab", "abc")).isLessThan(0);
+        }
+    }
 }
