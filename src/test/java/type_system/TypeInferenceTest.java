@@ -301,6 +301,62 @@ public class TypeInferenceTest {
         }
     }
 
+    @Nested
+    class 람다와_메서드_참조의_타입_추론 {
+
+        @Test
+        void 람다_파라미터_타입_추론() {
+            List<String> names = List.of("Alice", "Bob", "Charlie");
+
+            // 파라미터 타입 생략 가능
+            var lengths = names.stream()
+                    .map(s -> s.length()) // s는 String으로 추론
+                    .toList();
+
+            assertThat(lengths).containsExactly(5, 3, 7);
+        }
+
+        @Test
+        void 메서드_참조_타입_추론() {
+            List<String> names = List.of("Alice", "Bob", "Charlie");
+
+            // 메서드 참조도 컨텍스트에서 타입 추론
+            var lengths = names.stream()
+                    .map(String::length) // Function<String, Integer>로 추론
+                    .toList();
+
+            assertThat(lengths).containsExactly(5, 3, 7);
+        }
+
+        @Test
+        void 함수형_인터페이스_타겟_타이핑() {
+            // 같은 람다지만 다른 타입으로 해석됨
+            java.util.function.Predicate<String> predicate = s -> s.isEmpty();
+            java.util.function.Function<String, Boolean> function = s -> s.isEmpty();
+
+            assertThat(predicate.test("")).isTrue();
+            assertThat(function.apply("")).isTrue();
+        }
+
+        @Test
+        void var와_람다를_함께_사용시_주의점() {
+            // var는 람다에 직접 사용 불가
+            // var lambda = s -> s.length(); // 컴파일 에러!
+
+            // 타겟 타입 명시 필요
+            Function<String, Integer> lengthFunc = s -> s.length();
+            var result = lengthFunc.apply("hello");
+
+            assertThat(result).isEqualTo(5);
+
+            // 또는 메서드 참조와 함께 (타입이 명확할 때)
+            var list = List.of("a", "bb", "ccc");
+            var maxLength = list.stream().mapToInt(String::length).max().orElse(0);
+
+            assertThat(maxLength).isEqualTo(3);
+        }
+    }
+
     static class GenericMethodExample {
         public static <T> List<T> emptyList() {
             return new ArrayList<>();
