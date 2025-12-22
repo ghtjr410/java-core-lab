@@ -357,6 +357,55 @@ public class TypeInferenceTest {
         }
     }
 
+    @Nested
+    class Java_10_이후_var_와일드카드_캡처 {
+
+        @Test
+        void var와_와일드카드는_컴파일타임에_Object지만_런타임에는_실제_타입이다() {
+            List<?> wildcardList = List.of("a", "b", "c");
+
+            // var 없이: Object로만 받을 수 있음
+            Object first = wildcardList.getFirst();
+
+            for (var item : wildcardList) {
+                // 컴파일 타임: capture of ? (≈ Object)로 취급
+                // item.length();  // 컴파일 에러 - String 메서드 사용 불가
+
+                // 런타임: 실제 객체는 String
+                assertThat(item).isInstanceOf(Object.class); // 컴파일러가 아는 타입
+                assertThat(item).isInstanceOf(String.class); // 런타임 실제 타입
+            }
+
+            // Object로 받아도 런타임에는 실제 타입
+            assertThat(first).isInstanceOf(Object.class);
+            assertThat(first).isInstanceOf(String.class);
+            assertThat(first).isEqualTo("a");
+        }
+
+        @Test
+        void var_intersection_타입_캡처() {
+            // 익명 클래스로 다중 인터페이스 구현
+            var multiType = new Runnable() {
+                @Override
+                public void run() {
+                    // do something
+                }
+
+                public String getName() {
+                    return "MultiType";
+                }
+            };
+
+            // var 덕분에 getName() 호출 가능
+            // (명시적 타입이었다면 Runnable만 가능)
+            assertThat(multiType.getName()).isEqualTo("MultiType");
+
+            // Runnable로도 사용 가능
+            Runnable runnable = multiType;
+            assertThat(runnable).isNotNull();
+        }
+    }
+
     static class GenericMethodExample {
         public static <T> List<T> emptyList() {
             return new ArrayList<>();
