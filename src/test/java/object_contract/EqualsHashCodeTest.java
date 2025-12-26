@@ -2,9 +2,7 @@ package object_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -191,6 +189,74 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class hashCode_미구현시_문제 {
+
+        // hashCode 재정의 안 함
+        // → 주소값 기반
+        // → 같은 값이어도 다른 hashCode
+        // → HashMap/HashSet에서 못 찾음
+
+        // hashCode 필드값 기반으로 재정의
+        // → 같은 값이면 같은 hashCode
+        // → HashMap/HashSet에서 정상 동작
+
+        /**
+         * 핵심 질문: equals를 재정의하면 hashCode도 재정의해야 하는 이유는?
+         *
+         * 답: Hash 기반 컬렉션(HashMap, HashSet, Hashtable)이
+         * hashCode를 사용해 버킷을 결정하기 때문이다.
+         * hashCode가 다르면 equals를 호출하지도 않고 다른 객체로 판단한다.
+         */
+        @Test
+        void hashCode_미구현시_HashMap에서_객체를_찾을_수_없다() {
+            // hashCode를 구현하지 않은 클래스
+            BadPerson p1 = new BadPerson("John", 25);
+            BadPerson p2 = new BadPerson("John", 25);
+
+            assertThat(p1.equals(p2)).isTrue(); // equals는 true
+
+            Map<BadPerson, String> map = new HashMap<>();
+            map.put(p1, "person1");
+
+            // p1과 p2는 equals가 true지만, hashCode가 다르므로 찾지 못함
+            String value = map.get(p2);
+            assertThat(value).isNull(); // 찾지 못함
+        }
+
+        @Test
+        void hashCode_미구현시_HashSet에서_중복_판단_실패() {
+            BadPerson p1 = new BadPerson("John", 25);
+            BadPerson p2 = new BadPerson("John", 25);
+
+            Set<BadPerson> set = new HashSet<>();
+            set.add(p1);
+            set.add(p2); // 논리적으로 같은 객체
+
+            // equals는 true인데 hashCode가 달라서 중복으로 판단하지 않음
+            assertThat(set).hasSize(2); // 2개로 저장됨
+        }
+
+        @Test
+        void hashCode_올바르게_구현시_정상_동작() {
+            Person p1 = new Person("John", 25);
+            Person p2 = new Person("John", 25);
+
+            Map<Person, String> map = new HashMap<>();
+            map.put(p1, "person1");
+
+            // hashCode도 같으므로 정상적으로 찾음
+            String value = map.get(p2);
+            assertThat(value).isEqualTo("person1");
+
+            Set<Person> set = new HashSet<>();
+            set.add(p1);
+            set.add(p2);
+
+            assertThat(set).hasSize(1); // 중복 제거됨
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
@@ -216,6 +282,28 @@ public class EqualsHashCodeTest {
         public int hashCode() {
             return Objects.hash(name, age);
         }
+    }
+
+    /**
+     * hashCode를 구현하지 않은 잘못된 클래스
+     */
+    static class BadPerson {
+        private final String name;
+        private final int age;
+
+        public BadPerson(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof BadPerson that)) return false;
+            return age == that.age && Objects.equals(name, that.name);
+        }
+
+        // hashCode 미구현 Object.hashCode() 사용 (객체 주소 기반)
     }
 
     /**
