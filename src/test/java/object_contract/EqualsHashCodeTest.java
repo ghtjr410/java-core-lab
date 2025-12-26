@@ -116,6 +116,51 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class equals_추이성_위반_사례 {
+        // 상속하면서 필드 추가하면 equals 계약 지키기 불가능하다.
+        // 욕심부리지말고 컴포지션 써라가 핵심
+
+        /**
+         * 추이성 위반의 대표적 사례:
+         * 상속 관계에서 필드를 추가할 때 발생
+         */
+        @Test
+        void 추이성_위반_예시_상속과_필드_추가() {
+            Point p1 = new Point(1, 2);
+            ColorPoint cp1 = new ColorPoint(1, 2, "red");
+            ColorPoint cp2 = new ColorPoint(1, 2, "blue");
+
+            // ColorPoint.equals가 Point와 비교할 때 color를 무시한다면:
+            // p1.equals(cp1) == true (좌표만 비교)
+            // p1.equals(cp2) == true (좌표만 비교)
+            // 그런데 cp1.equals(cp2) == false (색상이 다름)
+            // → 추이성 위반
+
+            // 이 테스트는 "잘못된 구현"을 보여주는 것
+            assertThat(p1.equals(cp1)).isTrue();
+            assertThat(p1.equals(cp2)).isTrue();
+            assertThat(cp1.equals(cp2)).isFalse(); // 추이성 위반
+        }
+
+        @Test
+        void 해결책_상속_대신_컴포지션_사용() {
+            Point p = new Point(1, 2);
+            ColorPointComposition cp1 = new ColorPointComposition(new Point(1, 2), "red");
+            ColorPointComposition cp2 = new ColorPointComposition(new Point(1, 2), "blue");
+
+            // 서로 다른 타입이므로 비교 자체가 false
+            assertThat(p.equals(cp1)).isFalse();
+            assertThat(cp1.equals(p)).isFalse();
+
+            // 같은 타입끼리만 비교
+            assertThat(cp1.equals(cp2)).isFalse(); // 색상이 다름
+
+            // Point 비교가 필요하면 명시적으로 추출
+            assertThat(cp1.asPoint()).isEqualTo(cp2.asPoint());
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
@@ -168,6 +213,89 @@ public class EqualsHashCodeTest {
         @Override
         public int hashCode() {
             return s.toLowerCase().hashCode();
+        }
+    }
+
+    /**
+     * 추이성 위반 예시를 위한 Point
+     */
+    static class Point {
+        protected final int x;
+        protected final int y;
+
+        public Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Point p)) return false;
+            return x == p.x && y == p.y;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y);
+        }
+    }
+
+    /**
+     * 추이성 위반을 일으키는 하위 클래스
+     */
+    static class ColorPoint extends Point {
+        private final String color;
+
+        public ColorPoint(int x, int y, String color) {
+            super(x, y);
+            this.color = color;
+        }
+
+        // 추이성 위반 가능한 구현
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Point)) return false;
+
+            // Point와 비교할 때는 좌표만 비교
+            if (!(o instanceof ColorPoint cp)) {
+                return o.equals(this); // 위험한 코드
+            }
+
+            // ColorPoint끼리는 색상도 비교
+            return super.equals(o) && Objects.equals(color, cp.color);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), color);
+        }
+    }
+
+    /**
+     * 컴포지션으로 해결한 ColorPoint
+     */
+    static class ColorPointComposition {
+        private final Point point;
+        private final String color;
+
+        public ColorPointComposition(Point point, String color) {
+            this.point = point;
+            this.color = color;
+        }
+
+        public Point asPoint() {
+            return point;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ColorPointComposition cp)) return false;
+            return point.equals(cp.point) && Objects.equals(color, cp.color);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(point, color);
         }
     }
 }
