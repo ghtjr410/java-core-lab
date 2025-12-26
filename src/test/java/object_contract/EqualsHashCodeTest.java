@@ -2,7 +2,9 @@ package object_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -77,6 +79,43 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class equals_대칭성_위반_사례 {
+        // -- 다른 타입과 비교하려고 욕심부리지 마라가 핵심 --
+
+        /**
+         * 대칭성 위반의 대표적 사례:
+         * 상위 클래스와 하위 클래스 간의 equals 비교
+         */
+        @Test
+        void 대칭성_위반_예시_CaseInsensitiveString() {
+            CaseInsensitiveString cis = new CaseInsensitiveString("Hello");
+            String s = "hello";
+
+            // 대칭성 위반
+            // cis.equals(s) == true (CaseInsensitiveString이 String과 비교)
+            // s.equals(cis) == false (String은 CaseInsensitiveString을 모름)
+            assertThat(cis.equals(s)).isTrue();
+            assertThat(s.equals(cis)).isFalse(); // 대칭성 위반
+        }
+
+        @Test
+        void 대칭성_위반시_컬렉션에서_예측_불가능한_동작() {
+            CaseInsensitiveString cis = new CaseInsensitiveString("Hello");
+            String s = "hello";
+
+            Set<Object> set = new HashSet<>();
+            set.add(cis);
+
+            // 구현에 따라 결과가 달라질 수 있음 - 예측 불가능
+            // JDK 버전, HashSet 구현에 따라 true/false가 달라질 수 있다
+            boolean contains = set.contains(s);
+
+            // 이런 불확실성이 문제
+            assertThat(contains).isIn(true, false);
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
@@ -101,6 +140,34 @@ public class EqualsHashCodeTest {
         @Override
         public int hashCode() {
             return Objects.hash(name, age);
+        }
+    }
+
+    /**
+     * 대칭성 위반 예시
+     */
+    static class CaseInsensitiveString {
+        private final String s;
+
+        public CaseInsensitiveString(String s) {
+            this.s = Objects.requireNonNull(s);
+        }
+
+        // 잘못된 구현: String과의 비교를 시도
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof CaseInsensitiveString cis) {
+                return s.equalsIgnoreCase(cis.s);
+            }
+            if (o instanceof String str) { // 대칭성 위반의 원인
+                return s.equalsIgnoreCase(str);
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return s.toLowerCase().hashCode();
         }
     }
 }
