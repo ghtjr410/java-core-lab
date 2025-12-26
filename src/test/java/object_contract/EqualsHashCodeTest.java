@@ -161,6 +161,36 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class hashCode_계약 {
+
+        /**
+         * hashCode 계약:
+         * 1. equals가 true인 두 객체는 반드시 같은 hashCode를 가져야 한다
+         * 2. equals가 false인 두 객체가 다른 hashCode를 가질 필요는 없다 (권장사항)
+         * 3. 같은 객체에 대해 hashCode를 여러 번 호출해도 같은 값을 반환해야 한다
+         */
+        @Test
+        void equals가_true면_hashCode도_같아야_한다() {
+            Person p1 = new Person("John", 25);
+            Person p2 = new Person("John", 25);
+
+            assertThat(p1.equals(p2)).isTrue();
+            assertThat(p1.hashCode()).isEqualTo(p2.hashCode()); // 필수
+        }
+
+        @Test
+        void hashCode가_달라도_equals는_false일_수_있다() {
+            Person p1 = new Person("John", 25);
+            Person p2 = new Person("Jane", 30);
+
+            // hashCode가 다르면 equals도 false (최적화 가능)
+            // 하지만 hashCode가 같아도 equals가 false일 수 있음 (충돌)
+            assertThat(p1.equals(p2)).isFalse();
+            // hashCode는 같을 수도 다를 수도 있음
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
