@@ -257,6 +257,40 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class hashCode_구현_전략 {
+
+        @Test
+        void Objects_hash_사용_권장() {
+            Person person = new Person("John", 25);
+
+            // Objects.hash()는 내부적으로 Arrays.hashCode() 사용
+            int expected = Objects.hash("John", 25);
+            assertThat(person.hashCode()).isEqualTo(expected);
+        }
+
+        @Test
+        void 성능이_중요하면_직접_계산() {
+            PersonOptimized person = new PersonOptimized("John", 25);
+
+            // 31을 곱하는 이유: 홀수이면서 소수, 시프트와 뺄셈으로 최적화 가능
+            // 31 * i == (i << 5) - i
+            int expected = 31 * "John".hashCode() + 25;
+            assertThat(person.hashCode()).isEqualTo(expected);
+        }
+
+        @Test
+        void 불변_객체는_hashCode를_캐싱할_수_있다() {
+            PersonCached person = new PersonCached("John", 25);
+
+            int hash1 = person.hashCode();
+            int hash2 = person.hashCode();
+
+            // 같은 값 반환, 두 번째 호출부터는 캐시된 값 사용
+            assertThat(hash1).isEqualTo(hash2);
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
@@ -414,6 +448,62 @@ public class EqualsHashCodeTest {
         @Override
         public int hashCode() {
             return Objects.hash(point, color);
+        }
+    }
+
+    /**
+     * 직접 hashCode 계산 (성능 최적화)
+     */
+    static class PersonOptimized {
+        private final String name;
+        private final int age;
+
+        public PersonOptimized(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = name.hashCode();
+            result = 31 * result + age;
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof PersonOptimized p)) return false;
+            return age == p.age && Objects.equals(name, p.name);
+        }
+    }
+
+    /**
+     * hashCode 캐싱 (불변 객체)
+     */
+    static class PersonCached {
+        private final String name;
+        private final int age;
+        private int hashCode; // 캐시
+
+        public PersonCached(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = hashCode;
+            if (result == 0) {
+                result = Objects.hash(name, age);
+                hashCode = result;
+            }
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof PersonCached p)) return false;
+            return age == p.age && Objects.equals(name, p.name);
         }
     }
 }
