@@ -323,6 +323,41 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class Record는_자동으로_equals_hashCode를_구현 {
+
+        @Test
+        void record는_모든_필드로_equals와_hashCode를_자동_생성() {
+            record PersonRecord(String name, int age) {}
+
+            PersonRecord p1 = new PersonRecord("John", 25);
+            PersonRecord p2 = new PersonRecord("John", 25);
+            PersonRecord p3 = new PersonRecord("Jane", 25);
+
+            assertThat(p1).isEqualTo(p2);
+            assertThat(p1.hashCode()).isEqualTo(p2.hashCode());
+            assertThat(p1).isNotEqualTo(p3);
+        }
+
+        @Test
+        void record는_Hash_컬렉션에서_정상_동작() {
+            record PersonRecord(String name, int age) {}
+
+            PersonRecord p1 = new PersonRecord("John", 25);
+            PersonRecord p2 = new PersonRecord("John", 25);
+
+            Set<PersonRecord> set = new HashSet<>();
+            set.add(p1);
+            set.add(p2);
+
+            assertThat(set).hasSize(1);
+
+            Map<PersonRecord, String> map = new HashMap<>();
+            map.put(p1, "value1");
+            assertThat(map.get(p2)).isEqualTo("value1");
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
