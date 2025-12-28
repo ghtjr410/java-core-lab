@@ -291,6 +291,38 @@ public class EqualsHashCodeTest {
         }
     }
 
+    @Nested
+    class equals_구현_가이드라인 {
+
+        @Test
+        void instanceof_패턴_매칭으로_간결하게_구현() {
+            PersonModern p1 = new PersonModern("John", 25);
+            PersonModern p2 = new PersonModern("John", 25);
+            String notPerson = "not a person";
+
+            assertThat(p1.equals(p2)).isTrue();
+            assertThat(p1.equals(notPerson)).isFalse();
+            assertThat(p1.equals(null)).isFalse();
+        }
+
+        @Test
+        void getClass_vs_instanceof_차이() {
+            Point point = new Point(1, 2);
+            ColorPoint colorPoint = new ColorPoint(1, 2, "red");
+
+            // instanceof: 하위 클래스도 비교 가능 (리스코프 치환 원칙)
+            // getClass: 정확히 같은 클래스만 비교 (더 엄격)
+
+            // Point.equals가 instanceof 사용시
+            assertThat(point.equals(colorPoint)).isTrue(); // ColorPoint도 Point
+
+            // 엄격한 비교가 필요하면 getClass 사용
+            StrictPoint sp1 = new StrictPoint(1, 2);
+            StrictColorPoint scp = new StrictColorPoint(1, 2, "red");
+            assertThat(sp1.equals(scp)).isFalse(); // 클래스가 다름
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     /**
@@ -504,6 +536,75 @@ public class EqualsHashCodeTest {
         public boolean equals(Object o) {
             if (!(o instanceof PersonCached p)) return false;
             return age == p.age && Objects.equals(name, p.name);
+        }
+    }
+
+    /**
+     * Java 16+ instanceof 패턴 매칭 사용
+     */
+    static class PersonModern {
+        private final String name;
+        private final int age;
+
+        public PersonModern(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof PersonModern p && age == p.age && Objects.equals(name, p.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, age);
+        }
+    }
+
+    /**
+     * getClass를 사용한 엄격한 비교
+     */
+    static class StrictPoint {
+        protected final int x;
+        protected final int y;
+
+        public StrictPoint(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            StrictPoint that = (StrictPoint) o;
+            return x == that.x && y == that.y;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y);
+        }
+    }
+
+    static class StrictColorPoint extends StrictPoint {
+        private final String color;
+
+        public StrictColorPoint(int x, int y, String color) {
+            super(x, y);
+            this.color = color;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            StrictColorPoint that = (StrictColorPoint) o;
+            return x == that.x && y == that.y && Objects.equals(color, that.color);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y, color);
         }
     }
 }
