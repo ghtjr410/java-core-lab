@@ -86,6 +86,45 @@ public class ToStringTest {
         }
     }
 
+    @Nested
+    class toString_포맷_결정 {
+
+        /**
+         * 포맷을 명세할지 여부:
+         *
+         * 명세하는 경우:
+         * - 값 클래스 (PhoneNumber, Money 등)
+         * - 파싱이 필요한 경우
+         * - 포맷이 변경될 가능성이 낮은 경우
+         *
+         * 명세하지 않는 경우:
+         * - 포맷이 변경될 수 있는 경우
+         * - 디버깅 용도로만 사용하는 경우
+         */
+        @Test
+        void 포맷_명세시_valueOf_또는_정적_팩터리_제공_권장() {
+            PhoneNumber original = new PhoneNumber(82, 10, 12345678);
+            String str = original.toString();
+
+            // toString의 반대 연산 제공
+            PhoneNumber parsed = PhoneNumber.valueOf(str);
+
+            assertThat(parsed).isEqualTo(original);
+        }
+
+        @Test
+        void 포맷_미명세시_getter로_정보_접근_가능하게() {
+            PersonWithGetters person = new PersonWithGetters("John", 25);
+
+            // toString 포맷에 의존하지 않고 getter로 접근
+            assertThat(person.getName()).isEqualTo("John");
+            assertThat(person.getAge()).isEqualTo(25);
+
+            // toString은 디버깅용
+            assertThat(person.toString()).contains("John", "25");
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     static class NoToString {
@@ -228,6 +267,30 @@ public class ToStringTest {
                     .append(age)
                     .append('}')
                     .toString();
+        }
+    }
+
+    static class PersonWithGetters {
+        private final String name;
+        private final int age;
+
+        public PersonWithGetters(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getAge() {
+            return age;
+        }
+
+        @Override
+        public String toString() {
+            // 포맷은 변경될 수 있음 - 의존하지 말 것
+            return "PersonWithGetters{name='" + name + "', age=" + age + "}";
         }
     }
 }
