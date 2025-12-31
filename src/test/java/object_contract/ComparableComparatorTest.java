@@ -3,10 +3,7 @@ package object_contract;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.TreeSet;
+import java.util.*;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -81,6 +78,71 @@ public class ComparableComparatorTest {
         }
     }
 
+    @Nested
+    class Comparator_커스텀_순서 {
+
+        /**
+         * 핵심 질문: Comparable과 Comparator는 언제 각각 사용하는가?
+         *
+         * Comparable: 클래스의 기본 정렬 순서가 명확할 때 (자연적 순서)
+         * Comparator: 다양한 정렬 기준이 필요하거나, 클래스 수정이 불가능할 때
+         */
+        @Test
+        void Comparator로_다양한_정렬_기준_적용() {
+            List<Person> people =
+                    new ArrayList<>(List.of(new Person("Charlie", 30), new Person("Alice", 25), new Person("Bob", 35)));
+
+            // 나이 순 정렬
+            people.sort(Comparator.comparingInt(Person::age));
+
+            assertThat(people).extracting(Person::age).containsExactly(25, 30, 35);
+        }
+
+        @Test
+        void 역순_정렬() {
+            List<Person> people =
+                    new ArrayList<>(List.of(new Person("Alice", 25), new Person("Bob", 30), new Person("Charlie", 35)));
+
+            // 이름 역순
+            people.sort(Comparator.comparing(Person::name).reversed());
+
+            assertThat(people).extracting(Person::name).containsExactly("Charlie", "Bob", "Alice");
+        }
+
+        @Test
+        void 다중_기준_정렬() {
+            List<Employee> employees = new ArrayList<>(List.of(
+                    new Employee("Alice", "Engineering", 50000),
+                    new Employee("Bob", "Engineering", 60000),
+                    new Employee("Charlie", "Sales", 55000),
+                    new Employee("David", "Engineering", 50000)));
+
+            // 부서 → 급여(내림차순) → 이름 순
+            employees.sort(Comparator.comparing(Employee::department)
+                    .thenComparing(Employee::salary, Comparator.reverseOrder())
+                    .thenComparing(Employee::name));
+
+            assertThat(employees).extracting(Employee::name).containsExactly("Bob", "Alice", "David", "Charlie");
+        }
+
+        @Test
+        void null_처리_Comparator() {
+            List<String> names = new ArrayList<>(List.of("Bob", "Alice"));
+            names.add(null);
+            names.add("Charlie");
+
+            // null을 마지막에 배치
+            names.sort(Comparator.nullsLast(Comparator.naturalOrder()));
+
+            assertThat(names).containsExactly("Alice", "Bob", "Charlie", null);
+
+            // null을 처음에 배치
+            names.sort(Comparator.nullsFirst(Comparator.naturalOrder()));
+
+            assertThat(names).containsExactly(null, "Alice", "Bob", "Charlie");
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     record Person(String name, int age) implements Comparable<Person> {
@@ -97,4 +159,6 @@ public class ComparableComparatorTest {
             this.value = value;
         }
     }
+
+    record Employee(String name, String department, int salary) {}
 }
