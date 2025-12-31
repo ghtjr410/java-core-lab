@@ -143,6 +143,56 @@ public class ComparableComparatorTest {
         }
     }
 
+    @Nested
+    class Comparator_생성_방법 {
+
+        @Test
+        void comparing_메서드로_생성() {
+            Comparator<Person> byName = Comparator.comparing(Person::name);
+            Comparator<Person> byAge = Comparator.comparingInt(Person::age);
+
+            List<Person> people = new ArrayList<>(List.of(new Person("Bob", 25), new Person("Alice", 30)));
+
+            people.sort(byName);
+            assertThat(people.getFirst().name()).isEqualTo("Alice");
+
+            people.sort(byAge);
+            assertThat(people.getFirst().age()).isEqualTo(25);
+        }
+
+        @Test
+        void 람다로_직접_정의() {
+            /*
+             * 람다로 직접 정의하는 방식은 실무에서 잘 안 씀
+             * - 가독성 떨어짐
+             * - 비교 로직 실수 가능성 있음 (p1, p2 순서 헷갈림)
+             *
+             * 대부분 Comparator.comparing() 체이닝으로 해결됨:
+             * Comparator.comparing(p -> p.name().length())
+             */
+
+            Comparator<Person> byNameLength =
+                    (p1, p2) -> Integer.compare(p1.name().length(), p2.name().length());
+
+            List<Person> people = new ArrayList<>(
+                    List.of(new Person("Alexander", 25), new Person("Bob", 30), new Person("Charlie", 35)));
+
+            people.sort(byNameLength);
+
+            assertThat(people).extracting(Person::name).containsExactly("Bob", "Charlie", "Alexander");
+        }
+
+        @Test
+        void 메서드_참조로_자연순서_사용() {
+            List<String> names = new ArrayList<>(List.of("Charlie", "Alice", "Bob"));
+
+            // String::compareTo는 Comparable의 자연순서
+            names.sort(String::compareTo);
+
+            assertThat(names).containsExactly("Alice", "Bob", "Charlie");
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     record Person(String name, int age) implements Comparable<Person> {
