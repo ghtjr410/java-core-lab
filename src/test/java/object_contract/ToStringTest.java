@@ -2,6 +2,7 @@ package object_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.StringJoiner;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -122,6 +123,69 @@ public class ToStringTest {
 
             // toString은 디버깅용
             assertThat(person.toString()).contains("John", "25");
+        }
+    }
+
+    @Nested
+    class toString_실용적_가이드 {
+
+        @Test
+        void 컬렉션_필드는_size만_표시() {
+            /*
+             * 컬렉션 필드 toString() 전략:
+             * - 개수 제한 없는 경우 → size만 표시 (로그 폭발 방지)
+             * - 다만, 비즈니스 정책상 소량 고정인 경우 (이미지 5개, 옵션 3개 등)
+             *   → 내용 전체를 보여줘도 OK (디버깅에 더 유용)
+             */
+            LargeDataHolder holder = new LargeDataHolder(List.of("item1", "item2", "item3", "item4", "item5"));
+
+            String str = holder.toString();
+
+            // size만 표시, 내용은 노출하지 않음
+            assertThat(str).contains("itemsCount=5");
+            assertThat(str).doesNotContain("item1");
+        }
+
+        @Test
+        void 순환_참조_주의() {
+            /*
+             * 순환 참조 시 toString()은 StackOverflowError 발생 가능
+             *
+             * 실무에서 주로 발생하는 케이스: JPA 양방향 연관관계
+             * - Member ↔ Order 양방향 매핑 시
+             * - Member.toString() → orders.toString() → Order.toString() → member.toString() → 폭발...
+             *
+             * 해결 방법:
+             * - @ToString(exclude = "member") 로 순환 필드 제외
+             * - 또는 컬렉션 필드는 size만 표시: "ordersCount=" + orders.size()
+             * - 또는 연관 객체는 id만 표시: "memberId=" + member.getId()
+             * - 또는 Entity에는 @ToString 자체를 안 쓰고 DTO/View에서만 사용
+             * 상황에 맞게 선택해서 사용해야함
+             */
+
+            Node node1 = new Node("A");
+            Node node2 = new Node("B");
+            node1.next = node2;
+            node2.next = node1; // 순환
+
+            // 순환 참조가 있으면 StackOverflowError 발생 가능
+            // 이 구현은 순환을 피하기 위해 next의 value만 출력
+            String str = node1.toString();
+
+            assertThat(str).contains("A");
+            assertThat(str).contains("next=B");
+        }
+
+        @Test
+        void 민감정보_제외() {
+            User user = new User("john", "secret123", "john@email.com");
+
+            String str = user.toString();
+
+            assertThat(str).contains("john");
+            assertThat(str).contains("john@email.com");
+            assertThat(str).doesNotContain("secret123"); // 비밀번호 제외
+            assertThat(str).contains("password=***"); // 마스킹
         }
     }
 
@@ -291,6 +355,55 @@ public class ToStringTest {
         public String toString() {
             // 포맷은 변경될 수 있음 - 의존하지 말 것
             return "PersonWithGetters{name='" + name + "', age=" + age + "}";
+        }
+    }
+
+    static class LargeDataHolder {
+        private final List<String> items;
+
+        public LargeDataHolder(List<String> items) {
+            this.items = items;
+        }
+
+        @Override
+        public String toString() {
+            return "LargeDataHolder{itemsCount=" + items.size() + "}";
+        }
+    }
+
+    static class Node {
+        String value;
+        Node next;
+
+        public Node(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            // 순환 참조 방지: next의 value만 출력
+            return "Node{value='" + value + "'" + (next != null ? ", next=" + next.value : "") + "}";
+        }
+    }
+
+    static class User {
+        private final String username;
+        private final String password;
+        private final String email;
+
+        public User(String username, String password, String email) {
+            this.username = username;
+            this.password = password;
+            this.email = email;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" + "username='"
+                    + username + '\'' + ", password=***"
+                    + // 비밀번호 마스킹!
+                    ", email='"
+                    + email + '\'' + '}';
         }
     }
 }
