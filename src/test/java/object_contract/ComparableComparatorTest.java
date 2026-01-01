@@ -193,6 +193,75 @@ public class ComparableComparatorTest {
         }
     }
 
+    @Nested
+    class compareTo와_equals_일관성 {
+
+        /**
+         * compareTo와 equals의 일관성:
+         * x.compareTo(y) == 0 이면 x.equals(y)도 true여야 함 (권장)
+         *
+         * 일관성이 없으면 정렬된 컬렉션에서 예상치 못한 동작 발생
+         */
+        @Test
+        void 일관성_있는_구현() {
+            ConsistentVersion v1 = new ConsistentVersion(1, 0);
+            ConsistentVersion v2 = new ConsistentVersion(1, 0);
+
+            // compareTo와 equals가 일관됨
+            assertThat(v1.compareTo(v2)).isZero();
+            assertThat(v1.equals(v2)).isTrue();
+        }
+
+        @Test
+        void 일관성_없는_구현의_문제점() {
+            InconsistentVersion v1 = new InconsistentVersion(1, 0, "alpha");
+            InconsistentVersion v2 = new InconsistentVersion(1, 0, "beta");
+
+            // compareTo는 0 (버전만 비교)
+            assertThat(v1.compareTo(v2)).isZero();
+
+            // equals는 false (tag도 비교)
+            assertThat(v1.equals(v2)).isFalse();
+
+            // TreeSet에서 문제 발생
+            TreeSet<InconsistentVersion> treeSet = new TreeSet<>();
+            treeSet.add(v1);
+            treeSet.add(v2); // v1.compareTo(v2) == 0이므로 중복으로 판단
+
+            assertThat(treeSet).hasSize(1); // 2개가 아님
+
+            // HashSet은 equals 기반이므로 다르게 동작
+            java.util.HashSet<InconsistentVersion> hashSet = new java.util.HashSet<>();
+            hashSet.add(v1);
+            hashSet.add(v2);
+
+            assertThat(hashSet).hasSize(2); // equals가 false이므로 2개
+        }
+
+        @Test
+        void BigDecimal_일관성_문제_실례() {
+            java.math.BigDecimal bd1 = new java.math.BigDecimal("1.0");
+            java.math.BigDecimal bd2 = new java.math.BigDecimal("1.00");
+
+            // compareTo는 0 (수학적으로 같음)
+            assertThat(bd1.compareTo(bd2)).isZero();
+
+            // equals는 false (스케일이 다름)
+            assertThat(bd1.equals(bd2)).isFalse();
+
+            // TreeSet vs HashSet 동작 차이
+            TreeSet<java.math.BigDecimal> treeSet = new TreeSet<>();
+            treeSet.add(bd1);
+            treeSet.add(bd2);
+            assertThat(treeSet).hasSize(1);
+
+            java.util.HashSet<java.math.BigDecimal> hashSet = new java.util.HashSet<>();
+            hashSet.add(bd1);
+            hashSet.add(bd2);
+            assertThat(hashSet).hasSize(2);
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     record Person(String name, int age) implements Comparable<Person> {
@@ -211,4 +280,74 @@ public class ComparableComparatorTest {
     }
 
     record Employee(String name, String department, int salary) {}
+
+    /**
+     * compareTo와 equals가 일관된 구현
+     */
+    static class ConsistentVersion implements Comparable<ConsistentVersion> {
+        private final int major;
+        private final int minor;
+
+        public ConsistentVersion(int major, int minor) {
+            this.major = major;
+            this.minor = minor;
+        }
+
+        @Override
+        public int compareTo(ConsistentVersion other) {
+            int result = Integer.compare(this.major, other.major);
+            if (result == 0) {
+                result = Integer.compare(this.minor, other.minor);
+            }
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ConsistentVersion v)) return false;
+            return major == v.major && minor == v.minor;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(major, minor);
+        }
+    }
+
+    /**
+     * compareTo와 equals가 일관되지 않은 구현 (안티패턴)
+     */
+    static class InconsistentVersion implements Comparable<InconsistentVersion> {
+        private final int major;
+        private final int minor;
+        private final String tag; // equals에만 사용
+
+        public InconsistentVersion(int major, int minor, String tag) {
+            this.major = major;
+            this.minor = minor;
+            this.tag = tag;
+        }
+
+        @Override
+        public int compareTo(InconsistentVersion other) {
+            // tag는 비교하지 않음
+            int result = Integer.compare(this.major, other.major);
+            if (result == 0) {
+                result = Integer.compare(this.minor, other.minor);
+            }
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof InconsistentVersion v)) return false;
+            // tag도 비교함
+            return major == v.major && minor == v.minor && Objects.equals(tag, v.tag);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(major, minor, tag);
+        }
+    }
 }
