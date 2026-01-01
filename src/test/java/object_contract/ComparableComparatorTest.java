@@ -298,6 +298,50 @@ public class ComparableComparatorTest {
         }
     }
 
+    @Nested
+    class 실무_활용_패턴 {
+
+        @Test
+        void 스트림에서_정렬() {
+            List<Person> people = List.of(new Person("Charlie", 30), new Person("Alice", 25), new Person("Bob", 35));
+
+            List<Person> sortedByAge =
+                    people.stream().sorted(Comparator.comparingInt(Person::age)).toList();
+
+            assertThat(sortedByAge).extracting(Person::age).containsExactly(25, 30, 35);
+        }
+
+        @Test
+        void 최대_최소값_찾기() {
+            List<Person> people = List.of(new Person("Charlie", 30), new Person("Alice", 25), new Person("Bob", 35));
+
+            Person oldest =
+                    people.stream().max(Comparator.comparingInt(Person::age)).orElseThrow();
+
+            Person youngest =
+                    people.stream().min(Comparator.comparingInt(Person::age)).orElseThrow();
+
+            assertThat(oldest.name()).isEqualTo("Bob");
+            assertThat(youngest.name()).isEqualTo("Alice");
+        }
+
+        @Test
+        void 범위_검색에_Comparable_활용() {
+            TreeSet<Person> people = new TreeSet<>();
+            people.add(new Person("Alice", 25));
+            people.add(new Person("Bob", 30));
+            people.add(new Person("Charlie", 35));
+            people.add(new Person("David", 40));
+
+            // Alice(포함) ~ Charlie(미포함) 범위
+            // subSet 내부에 compare
+            // compareTo로 범위 판단
+            var subset = people.subSet(new Person("Alice", 0), new Person("Charlie", 0));
+
+            assertThat(subset).extracting(Person::name).containsExactly("Alice", "Bob");
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     record Person(String name, int age) implements Comparable<Person> {
