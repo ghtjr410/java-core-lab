@@ -262,6 +262,42 @@ public class ComparableComparatorTest {
         }
     }
 
+    @Nested
+    class compareTo_구현_가이드라인 {
+
+        @Test
+        void 기본형은_박싱_클래스의_compare_사용() {
+            // 안티패턴: 직접 빼기 연산 (오버플로우 위험)
+            // return this.value - other.value;
+
+            // 권장: 박싱 클래스의 compare 메서드
+            IntWrapper w1 = new IntWrapper(Integer.MAX_VALUE);
+            IntWrapper w2 = new IntWrapper(-1);
+
+            // 올바른 결과
+            assertThat(w1.compareTo(w2)).isPositive();
+        }
+
+        @Test
+        void 다중_필드_비교시_중요도_순서로() {
+            Version v1 = new Version(1, 9, 0);
+            Version v2 = new Version(2, 0, 0);
+            Version v3 = new Version(1, 10, 0);
+
+            assertThat(v1.compareTo(v2)).isNegative(); // major가 더 중요
+            assertThat(v1.compareTo(v3)).isNegative(); // minor 비교
+        }
+
+        @Test
+        void Comparator_체이닝으로_간결하게_구현() {
+            // Comparable 구현 시 Comparator를 활용
+            VersionModern v1 = new VersionModern(1, 9, 0);
+            VersionModern v2 = new VersionModern(2, 0, 0);
+
+            assertThat(v1.compareTo(v2)).isNegative();
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     record Person(String name, int age) implements Comparable<Person> {
@@ -348,6 +384,75 @@ public class ComparableComparatorTest {
         @Override
         public int hashCode() {
             return Objects.hash(major, minor, tag);
+        }
+    }
+
+    /**
+     * 오버플로우 안전한 비교
+     */
+    static class IntWrapper implements Comparable<IntWrapper> {
+        private final int value;
+
+        public IntWrapper(int value) {
+            this.value = value;
+        }
+
+        @Override
+        public int compareTo(IntWrapper other) {
+            // 안전: Integer.compare 사용
+            return Integer.compare(this.value, other.value);
+            // 위험: return this.value - other.value; (오버플로우)
+        }
+    }
+
+    /**
+     * 전통적인 다중 필드 compareTo
+     */
+    static class Version implements Comparable<Version> {
+        private final int major;
+        private final int minor;
+        private final int patch;
+
+        public Version(int major, int minor, int patch) {
+            this.major = major;
+            this.minor = minor;
+            this.patch = patch;
+        }
+
+        @Override
+        public int compareTo(Version other) {
+            int result = Integer.compare(this.major, other.major);
+            if (result != 0) return result;
+
+            result = Integer.compare(this.minor, other.minor);
+            if (result != 0) return result;
+
+            return Integer.compare(this.patch, other.patch);
+        }
+    }
+
+    /**
+     * Comparator를 활용한 모던 compareTo
+     */
+    static class VersionModern implements Comparable<VersionModern> {
+        private static final Comparator<VersionModern> COMPARATOR = Comparator.comparingInt(
+                        (VersionModern v) -> v.major)
+                .thenComparingInt(v -> v.minor)
+                .thenComparingInt(v -> v.patch);
+
+        private final int major;
+        private final int minor;
+        private final int patch;
+
+        public VersionModern(int major, int minor, int patch) {
+            this.major = major;
+            this.minor = minor;
+            this.patch = patch;
+        }
+
+        @Override
+        public int compareTo(VersionModern other) {
+            return COMPARATOR.compare(this, other);
         }
     }
 }
