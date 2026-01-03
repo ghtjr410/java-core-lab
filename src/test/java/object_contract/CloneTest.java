@@ -3,6 +3,8 @@ package object_contract;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -74,6 +76,43 @@ public class CloneTest {
         }
     }
 
+    @Nested
+    class 얕은_복사_Shallow_Copy {
+
+        @Test
+        void Object_clone은_얕은_복사를_수행() throws CloneNotSupportedException {
+            List<String> list = new ArrayList<>(List.of("a", "b", "c"));
+            ShallowCloneable original = new ShallowCloneable("test", list);
+
+            ShallowCloneable cloned = original.clone();
+
+            // 객체는 다름
+            assertThat(cloned).isNotSameAs(original);
+
+            // 하지만 내부 리스트는 같은 참조
+            assertThat(cloned.getItems()).isSameAs(original.getItems());
+
+            // 원본 수정하면 복사본도 영향받음
+            original.getItems().add("d");
+            assertThat(cloned.getItems()).contains("d"); // 복사본도 변경됨
+        }
+
+        @Test
+        void 얕은_복사의_문제점() throws CloneNotSupportedException {
+            Address address = new Address("Seoul", "123");
+            PersonWithAddress original = new PersonWithAddress("John", address);
+
+            PersonWithAddress cloned = original.clone();
+
+            // 주소 객체가 공유됨
+            assertThat(cloned.getAddress()).isSameAs(original.getAddress());
+
+            // 원본 주소 변경 시 복사본도 영향받음
+            original.getAddress().setCity("Busan");
+            assertThat(cloned.getAddress().getCity()).isEqualTo("Busan"); // 영향받음
+        }
+    }
+
     // === 테스트용 헬퍼 클래스들 ===
 
     static class NonCloneable {
@@ -120,6 +159,73 @@ public class CloneTest {
         @Override
         public int hashCode() {
             return 31 * name.hashCode() + value;
+        }
+    }
+
+    /**
+     * 얕은 복사 문제 시연
+     */
+    static class ShallowCloneable implements Cloneable {
+        private final String name;
+        private final List<String> items;
+
+        public ShallowCloneable(String name, List<String> items) {
+            this.name = name;
+            this.items = items;
+        }
+
+        public List<String> getItems() {
+            return items;
+        }
+
+        @Override
+        public ShallowCloneable clone() throws CloneNotSupportedException {
+            return (ShallowCloneable) super.clone(); // 얕은 복사만!
+        }
+    }
+
+    static class Address {
+        private String city;
+        private String zipCode;
+
+        public Address(String city, String zipCode) {
+            this.city = city;
+            this.zipCode = zipCode;
+        }
+
+        public String getCity() {
+            return city;
+        }
+
+        public void setCity(String city) {
+            this.city = city;
+        }
+
+        public String getZipCode() {
+            return zipCode;
+        }
+
+        public Address copy() {
+            return new Address(this.city, this.zipCode);
+        }
+    }
+
+    static class PersonWithAddress implements Cloneable {
+        private final String name;
+        private final Address address;
+
+        public PersonWithAddress(String name, Address address) {
+            this.name = name;
+            this.address = address;
+        }
+
+        public Address getAddress() {
+            return address;
+        }
+
+        @Override
+        public PersonWithAddress clone() throws CloneNotSupportedException {
+            return (PersonWithAddress) super.clone(); // 얕은 복사 - Address 공유됨
         }
     }
 }
